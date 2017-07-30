@@ -1,6 +1,8 @@
 # Voyage of the Indefatigable
 
-**Voyage of the _Indefatigable_** is a resource management game taking place on the starship _Indefatigable_. The eight crew members are on a journey through space, but their ship's core can only produce enough power to run the cryostasis modules. In order to reach their destination, they must make use of their stored reserves of power to run the life support and other ship systems in order to defenda against threats like stellar storms and radiation fields.
+**Voyage of the _Indefatigable_** is a resource management game taking place on the starship _Indefatigable_. The eight crew members are on a journey through space, but their ship's core can only produce enough power to run the cryostasis modules. In order to reach their destination, they must make use of their stored reserves of power to run the life support and other ship systems in order to defend against threats like stellar storms and radiation fields.
+
+There's no music, but consider [playing this in the background](https://www.youtube.com/watch?v=0mHf0cKPU5g).
 
 ## Ship positions
 
