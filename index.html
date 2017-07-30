@@ -1,0 +1,720 @@
+<html>
+<head>
+<title>Voyage of the Indefatigable</title>
+<style>
+html { background:#000; }
+body { background: url("assets/stars.png"); }
+div#outer-darkness { display:flex;justify-content:center;align-items:center; }
+div#content-wrapper {
+	display:inline-block;
+	position:relative;
+	min-width:1280px; max-width:1280px;
+	min-height:720px; max-height:720px;
+	background:rgba(255,255,255,0.2);
+}
+div#progress-bg {
+	position:absolute;top:0;left:0;width:1276;height:32;
+	background-image:url("assets/stars-small.png");
+	border: 2px solid #ffd
+}
+img#progress-ship { position:absolute; top:2;left:2; }
+div#logbox {
+	position:absolute;right:4;top:40;height:668;border:2px solid black;padding: 2px;width: 320px;
+	word-wrap:break-word;overflow-x: hidden;overflow-y:scroll;
+	font-size:12px; font-family:monospace; background:rgba(0,0,0,0.8); color:#fff
+}
+div.crew-status { position:absolute;width:364;height:72; background:rgba(255,255,255,0.8); border: 2px solid black; border-radius:5px; }
+img.crew-img { position:absolute;width:64px;height:64px;left:2;top:2;border: 2px solid black;background-color:#444; }
+img.blurred { filter:blur(1px); }
+div.cryo-tint { position:absolute;width:64px;height:64px;left:2;top:2;border: 2px solid black;background-color:rgba(0,255,255,0.4); }
+span.crew-name { position:absolute; left:76;top:2; font-size:20px;font-weight:bold; width:200;align:right; }
+span.crew-job {
+	position:absolute; left:76;top:24; font-size:20px;
+	//border-bottom: 1px dotted #000;
+}
+span.crew-status { position:absolute; left:76;top:46; font-size:20px; }
+span.crew-name-dead { text-decoration:line-through; }
+span.crew-job-dead { text-decoration:line-through; }
+span.crew-status-normal { color:#0a0; }
+span.crew-status-critical { font-weight:bold; color:#a00; -webkit-animation: red-blink 2s infinite; animation: red-blink 2s infinite; }
+span.crew-status-dead { color:black; }
+@-webkit-keyframes red-blink { 50% {color:#f00;} }
+@keyframes red-blink { 50% {color:#f00;} }
+select.crew-select { position:absolute;  left:240; top:4; width:120px;height:38px; }
+button.cryo-button { position:absolute; left:240;bottom:4; width:120px;height:22px; background:#aaf;}
+div#power-emptybg {
+	position:absolute; left:4; bottom:4; height:46; width:930px;
+	border: 2px solid black;
+	border-top-right-radius:23px;
+	border-bottom-right-radius:23px;
+	background:#444; overflow:hidden;
+}
+div#power-fullbg {
+	position:absolute; left:-2; bottom:-2; height:46; width:930px;
+	border: 2px solid black;
+	border-top-right-radius:23px;
+	border-bottom-right-radius:23px;
+	background:#0af;
+	-webkit-animation: power-pulse 2s infinite; animation: power-pulse 2s infinite;
+}
+div#power-text {
+	position:absolute; left:4; bottom:4; height:46; width:930px; padding:2px;
+}
+span#power-left { position:absolute; left:12;  font-size:40; }
+span#power-used { position:absolute; right:12; font-size:40; }
+@-webkit-keyframes power-pulse { 50% {background: #0ff;} }
+@keyframes power-pulse { 50% {background: #0ff;} }
+div.stat-display {
+	position:absolute;
+	border: 2px solid black; background:rgba(255,255,255,0.8);
+	text-align:right; line-height:48px; font-family:monospace; padding-right:8px; white-space:nowrap; font-size:24;
+}
+</style>
+<script src="jquery-3.2.1.min.js"></script>
+<script>
+////////////////////
+// GAME VARIABLES //
+////////////////////
+var CREW = 8;
+var CREWNAMES = ["Emil Thomson", "Virgil Redd", "Tanya Baker", "Christina Nast", "Kavz Andronicus", "Gunther", "Kierkegaard", "Liege"];
+var SHORTNAMES = ["Thomson", "Redd", "Baker", "Nast", "Andronicus", "Gunther", "Kierkegaard", "Liege"];
+var CREWJOBS = ["Captain", "Chief Engineer", "Defense Officer", "Medical Officer", "Staff Wizard", "Quantum Engineer", "Data Scientist", "Horse"];
+var POSITIONS = ["Cryo Control", "Engine Room", "Life Support", "Medical Bay", "Missile Control", "Scanner Array", "Shield Gens", "Warp Control"];
+var SPECIALTIES = [[1,4], [1,5], [4,6], [2,3], [2,7], [6,7], [3,5], []];
+var ISHORSE = [false, false, false, false, false, true, true, true];
+var MAXPROGRESS =		100000;
+var PROGBADWIDTH =		1280 - 48 - 4;
+var MAXPOWER = 			10000000;
+var POWBARWIDTH =		930;
+var GAINCORE =			300;
+var COSTCRYO =			5;
+var COSTLIFESUP =		30;
+var COSTENGINE =		100;
+var COSTSCANNER =		80;
+var COSTSHIELD =		80;
+var COSTMEDBAY =		15;
+var COSTMISSILE =		40;
+var COSTWARP =			60;
+var GAINLIFESUP =		5;
+var MOVEDELAY =			1500;
+var CRYODELAY =			1000;
+var THAWDELAY =			5000;
+var CRISISMIN =			3;
+var CRISISMAX =			98;
+var HEALCOUNT =			150;
+var MAXHEALTH =			4;
+var WARPBUILDCOUNT =	50;
+var WARPDECAYCOUNT =	120;
+var WARPDIST =			3000;
+var WARPCOST =			400000;
+var WARPTIME =			1000;
+var STORMLOSS =			300000;
+var HOSTILELOSS =		300000;
+var HOSTILEDECR =		100000;
+var NUMBLACKHOLE = 		1;
+var NUMSPATIALFLUX = 	2;
+var NUMHEATWAVE =		3;
+var NUMRADFIELD =		3;
+var NUMSTARSTORM =		3;
+var NUMHOSTILES =		2;
+
+
+var gameLoopId;
+var power = 10000000; // Running out of this
+var progress = 0;
+var currentMilestone = 0;
+var frozen = [false, true, true, true, true, true, true, true];
+var health = [4, 4, 4, 4, 4, 4, 4, 4];
+var crisisEvents = [];
+var horseRevolt = false;
+
+var usageCryo, usageLifeSup, usageEngine, usageScanner, usageShield, usageMedbay, usageMissile, usageWarp;
+var usageTotal;
+var engineSpeed, scanRange, shieldStr;
+var healBuildTick = 0;
+var hostiles;
+var warpBuildTick = 0;
+var warpDecayTick = 0;
+var warpPerc = 0;
+
+///////////////
+// FUNCTIONS //
+///////////////
+function makeCrewStatusBox(crewid) {
+	// Create the elements
+	var id = "crew-status" + crewid;
+	var $container = $("<div>", {id:id, "class":"crew-status"});
+	$container.css("left", 4);
+	$container.css("top", 40 + crewid * (72 + 6));
+	var imgSrc = "assets/crew" + (crewid+1) + ".png";
+	var $crewImg  = $("<img>", {"class":"crew-img blurred", "src":imgSrc});
+	var $cryoTint = $("<div>", {"class":"cryo-tint"}).css("display", crewid == 0);
+	var $crewName = $("<span>", {"class":"crew-name"}).text(CREWNAMES[crewid]);
+	var $crewJob  = $("<span>", {"class":"crew-job"})
+		.text(CREWJOBS[crewid]);
+		//.attr("title", SHORTNAMES[crewid] + " works best in " + POSITIONS[SPECIALTIES[crewid][0]] + " and " + POSITIONS[SPECIALTIES[crewid][1]]);
+	//if (SHORTNAMES[crewid] == "Liege") $crewJob.attr("title", "Liege is trying his best");
+	var $crewStat = $("<span>", {"class":"crew-status crew-status-normal"}).text("Healthy");
+	var $positionSelect = $("<select>", {"class":"crew-select"}).prop("disabled", true)
+		.append($("<option>", { value: "Cryo Control", text: "Cryo Control" }))
+		.append($("<option>", { value: "Engine Room", text: "Engine Room" }))
+		.append($("<option>", { value: "Life Support", text: "Life Support" }))
+		.append($("<option>", { value: "Medical Bay", text: "Medical Bay" }))
+		.append($("<option>", { value: "Missile Control", text: "Missile Control" }))
+		.append($("<option>", { value: "Scanner Array", text: "Scanner Array" }))
+		.append($("<option>", { value: "Shield Gens", text: "Shield Gens" }))
+		.append($("<option>", { value: "Warp Control", text: "Warp Control" }))
+		.change( function(){ positionChanged(crewid); } );
+	/*SPECIALTIES[crewid].forEach(function(n){
+			$positionSelect.find("option").eq(n).append("**")
+		});*/
+	var $cryoButton = $("<button>", {"class": "cryo-button", text:"Unfreeze"})
+		.click( function() { cryoToggle(crewid); } );
+	if (!frozen[crewid]) {
+		$crewImg.removeClass("blurred");
+		$cryoTint.css("display", "none");
+		$cryoButton.text("Cryofreeze");
+		$positionSelect.prop("disabled", false);
+	}
+	// Append the elements
+	$crewImg.appendTo($container);
+	$cryoTint.appendTo($container);
+	$crewName.appendTo($container);
+	$crewJob.appendTo($container);
+	$crewStat.appendTo($container);
+	$positionSelect.appendTo($container);
+	$cryoButton.appendTo($container);
+	$container.appendTo("#content-wrapper");
+}
+
+function crisisSetup() {
+	var dist, crisis, i, j, k;
+	// Black hole
+	for (i = 0; i < NUMBLACKHOLE; i++) {
+		dist = Math.floor(Math.random()*(60-40+1)+40);
+		crisis = [dist, "Black hole", function() {
+				logbox('<span style="color:#a00">The <i>Indefatigable</i> has been crushed by a black hole.</span>');
+				for (j = 0; j < CREW; j++) {
+					if (health[j] >= 1) {
+						health[j] = 1;
+						injure(j);
+					}
+				}
+			}];
+		crisisEvents.push(crisis);
+	}
+	// Spatial flux
+	for (i = 0; i < NUMSPATIALFLUX; i++) {
+		dist = Math.floor(Math.random()*(80-20+1)+20);
+		crisis = [dist, "Spatial flux", function() {
+				var warpStaffed = numActiveIn("Warp Control") > 0;
+				if (!warpStaffed || warpPerc < 15) {
+					logbox('<span style="color:#a00">The <i>Indefatigable</i> was ripped apart by spatial flux.</span>')
+					for (j = 0; j < CREW; j++) {
+						if (health[j] >= 1) {
+							health[j] = 1;
+							injure(j);
+						}
+					}
+				} else {
+					warpPerc -= 15;
+					for (j = 0; j < CREW; j++) {
+						if ($("#crew-status"+j+" .crew-select").val() == "Warp Control")
+							injure(j);
+					}
+				}
+			}];
+		crisisEvents.push(crisis);
+	}
+	// Heat wave
+	for (i = 0; i < NUMHEATWAVE; i++) {
+		dist = Math.floor(Math.random()*(CRISISMAX-CRISISMIN+1)+CRISISMIN);
+		crisis = [dist, "Heat wave", function() {
+				if (frozen.some(x=>x)) {
+					logbox('<span style="color:#a00">A heat wave disrupted the cryogenic modules.</span>');
+					for (j = 0; j < CREW; j++) {
+						if (frozen[j] && health[j] >= 1) {
+							health[j] = 1;
+							injure(j);
+						}
+					}
+				}
+			}];
+		crisisEvents.push(crisis);
+	}
+	// Radiation field
+	for (i = 0; i < NUMRADFIELD; i++) {
+		dist = Math.floor(Math.random()*(CRISISMAX-CRISISMIN+1)+CRISISMIN);
+		crisis = [dist, "Radiation field", function() {
+				var activeLS = numActiveIn("Life Support");
+				var hits = 3 - activeLS;
+				for (j = 0; j < hits; j++){
+					var hitArea = Math.floor(Math.random()*(POSITIONS.length-1+1)+0);
+					logbox('<span style="color:#a00">'+POSITIONS[hitArea]+' was hit by radiation.</span>');
+					for (k = 0; k < CREW; k++) {
+						if ($("#crew-status"+k+" .crew-select").val() == POSITIONS[hitArea] && health[k] > 0 && !frozen[k]) {
+							injure(k);
+						}
+					}
+				}
+			}];
+		crisisEvents.push(crisis);
+	}
+	// Stellar storm
+	for (i = 0; i < NUMSTARSTORM; i++) {
+		dist = Math.floor(Math.random()*(CRISISMAX-CRISISMIN+1)+CRISISMIN);
+		crisis = [dist, "Stellar storm", function() {
+				var powerLoss = STORMLOSS / shieldStr;
+				if (shieldStr > 1) {
+					logbox("Shields reduced storm damage to " + Math.round(100 / shieldStr) + "%.");
+				}
+				power = Math.max(0, power - powerLoss);
+			}];
+		crisisEvents.push(crisis);
+	}
+	// Hostile fighters
+	for (i = 0; i < NUMHOSTILES; i++) {
+		dist = Math.floor(Math.random()*(CRISISMAX-CRISISMIN+1)+CRISISMIN);
+		var id = i;
+		crisis = [dist, "Hostile fighters", function() {
+				var activeMC = numActiveIn("Missile Control");
+				console.log("HF id " + id);
+				var me = crisisEvents.filter(x => (x[1] == "Hostile fighters")).filter(x => (x[3] == id))[0];
+				me[4] -= activeMC * HOSTILEDECR;
+				if (me[4] <= 0) {
+					logbox("All hostile fighters destroyed.");
+				} else {
+					power = Math.max(0, power - me[4]);
+					logbox("Damage: " + me[4]);
+					me[0] += 1;
+					if (activeMC > 0) {
+						logbox(activeMC + " hostile fighters destroyed. The remnants have retreated... for now.");
+					} else {
+						logbox("Automatic ship defenses have repelled the hostile fighters... for now.");
+					}
+				}
+			}, id, HOSTILELOSS];
+		crisisEvents.push(crisis);
+	}
+	//
+}
+
+function startGame() {
+	// Set up the game
+	$(function(){
+		var i;
+		for (i = 0; i < 8; i++)
+			makeCrewStatusBox(i);
+		updateUI();
+		crisisSetup();
+		console.log(crisisEvents.sort((a,b) => (a[0]-b[0])).map(x => (x[0] + " " + x[1])).join(" | "));
+		//console.log(crisisEvents.map(x => x[0]).sort((a, b) => (a - b)).join(" "));
+	});
+	// Run the game loop
+	setTimeout(function(){
+			//alert("Congratulations, brave explorer! You have been chosen "+
+			//		"to lead an expedition.")
+			gameLoopId = setInterval(gameIter, 1000/30);
+		}, 1000);
+}
+
+function logbox(s) {
+	var p = "000000" + progress;
+	p = p.substr(p.length-6)
+	$("#logbox").append("[" + p + "] " + s + "<br>");
+	$("#logbox").scrollTop($("#logbox")[0].scrollHeight);
+	//$("#logbox").animate({scrollTop: $("#logbox")[0].scrollHeight}, 1000);
+}
+
+function gameIter() {
+	// Deduct used energy
+	power = Math.round(Math.max(0, power - usageTotal));
+	$("#power-left").text(power);
+	$("#power-fullbg").css("width", Math.round(930 * power / MAXPOWER));
+	// Progress updates
+	progress = Math.round(Math.min(MAXPROGRESS, progress + engineSpeed));
+	var progressPerc = progress / MAXPROGRESS;
+	var progressProp = 2 + Math.round(progressPerc * PROGBADWIDTH);
+	// Check what progress brings
+	healthCheckTick();
+	warpTick();
+	$("#stat-ratio-left").text(Math.round(10000 * (MAXPROGRESS - progress) / power));
+	var newMilestone = Math.floor(100*progressPerc);
+	if (newMilestone > currentMilestone) {
+		currentMilestone = newMilestone;
+		logbox('<span style="color:#0a0">Progress: ' + currentMilestone + '%</span>');
+		healthCheckMilestone();
+		crisisCheck();
+		updateUI();
+	}
+	
+	// Update GUI
+	$("#progress-ship").css("left", progressProp);
+	$("body").css("background-position-x", -progress);
+	// Check if the game ended
+	if (currentMilestone == 100) {
+		logbox('<span style="color:#0a0"><b>You have reached your destination.</b></span>');
+		clearInterval(gameLoopId);
+	}
+	if (power <= 0) {
+		logbox('<span style="color:#a00">You have run out of power. Life support systems have failed.</span>');
+		for (var i = 0; i < CREW; i++) {
+			if (health[i] >= 1) {
+				health[i] = 1;
+				injure(i);
+			}
+		}
+	}
+	if (!health.some(x => x > 0)) {
+		logbox('<span style="color:#a00"><b>All crewmembers have died.</b></span>');
+		clearInterval(gameLoopId);
+	}
+}
+
+function healthCheckTick() {
+	var i, j;
+	var injuredInMedbay = false;
+	for (i = 0; i < CREW; i++) {
+		if ($("#crew-status"+i+" .crew-select").val() == "Medical Bay" && health[i] < MAXHEALTH) {
+			injuredInMedbay = true;
+			break;
+		}
+	}
+	var doctorInMedbay = false;
+	for (j = 0; j < CREW; j++) {
+		if ($("#crew-status"+j+" .crew-select").val() == "Medical Bay" && health[j] == MAXHEALTH) {
+			doctorInMedbay = true;
+			break;
+		}
+	}
+	if (injuredInMedbay && doctorInMedbay) {
+		healBuildTick += 1;
+		$("#stat-heal-tick").text(healBuildTick);
+	}
+	if (healBuildTick >= HEALCOUNT) {
+		healBuildTick = 0;
+		$("#stat-heal-tick").text(healBuildTick);
+		health[i] += 1;
+		if (health[i] == MAXHEALTH) {
+			$("#crew-status"+i+" .crew-status").text("Healthy");
+			$("#crew-status"+i+" .crew-status").removeClass("crew-status-critical");
+			$("#crew-status"+i+" .crew-status").addClass("crew-status-normal");
+		}
+		var injuredOut = 0, injuredIn = 0;
+		for (var i = 0; i < CREW; i++) {
+			if (health[i] < MAXHEALTH && health[i] > 0) {
+				if ($("#crew-status"+i+" .crew-select").val() == "Medical Bay")
+					injuredIn += 1;
+				else
+					injuredOut += 1;
+			}
+		}
+		$("#stat-health-critical").text(injuredOut);
+		$("#stat-health-care").text(injuredIn);
+	}
+}
+
+function healthCheckMilestone() {
+	for (var i = 0; i < CREW; i++) {
+		if ($("#crew-status"+i+" .crew-select").val() != "Medical Bay" && $("#crew-status"+i+" .crew-status").text() == "Injured") {
+			injure(i);
+		}
+	}
+}
+
+function warpTick() {
+	var active = numActiveIn("Warp Control");
+	if (active > 0) {
+		warpBuildTick += active;
+		warpDecayTick = 0;
+		if (warpBuildTick >= WARPBUILDCOUNT) {
+			warpPerc = Math.min(100, warpPerc + 1);
+			warpBuildTick = 0;
+		}
+	} else {
+		warpDecayTick += 1;
+		warpBuildTick = 0;
+		if (warpDecayTick >= WARPDECAYCOUNT) {
+			warpPerc = Math.max(0, warpPerc - 1);
+			warpDecayTick = 0;
+		}
+	}
+	$("#warp-button").attr("disabled", warpPerc < 100);
+	$("#stat-warp-perc").text(warpPerc);
+}
+
+function crisisCheck() {
+	crisisEvents.forEach(function(c){
+			// Forewarning
+			if (c[0] > currentMilestone && c[0] - currentMilestone <= scanRange) {
+				logbox('<span style="color:#a00">' + c[1] + ' approaching in ' + (c[0] - currentMilestone) + '</span>');
+			}
+			// Occasion
+			if (c[0] == currentMilestone) {
+				logbox('<span style="color:#a00">' + c[1] + ' encountered!</span>');
+				c[2]();
+			}
+		});
+	// Horse revolt
+	var viveLaRevolution = true;
+	var i;
+	for (i = 0; i < ISHORSE.length; i++) {
+		var $crew = $("#crew-status"+i);
+		if (ISHORSE[i] && (frozen[i] || $crew.find(".crew-status").text() != "Healthy"))
+			viveLaRevolution = false;
+		if (!ISHORSE[i] && $crew.find(".crew-status").text() != "Dead" && !frozen[i])
+			viveLaRevolution = false;
+	}
+	if (viveLaRevolution && !horseRevolt) {
+		horseRevolt = true;
+		logbox('<span style="color:#aa0">The horses have revolted and sabotaged the cryostasis modules,'+
+			' killing all of the humans. Long live the equine revolution!</span>');
+		for (i = 0; i < ISHORSE.length; i++) {
+			if (!ISHORSE[i]) {
+				health[i] = 1;
+				injure(i);
+			}
+		}
+	}
+}
+
+function updateUI() {
+	var cryoControlStaffed = $(".crew-select").map(
+		function(){
+			return $(this).val() == "Cryo Control" && !$(this).attr("disabled");
+		}).get().some(function(x){return x;});
+	$(".crew-status").each(function(){
+			$(this).find(".cryo-button").prop("disabled",
+				!cryoControlStaffed ||
+				($(this).find("select").val() != "Cryo Control") ||
+				$(this).find(".cryo-button").text().endsWith("...") ||
+				$(this).find(".crew-status").text() == "Dead"
+			)
+		});
+	for (var i = 0; i < health.length; i++) {
+		if (health[i] <= 0) {
+			$("#crew-status"+i+" .crew-select").prop("disabled", true);
+			$("#crew-status"+i+" .cryo-button").prop("disabled", true);
+		}
+	}
+	updateStats();
+	$("#warp-button").attr("disabled", warpPerc < 100)
+}
+
+function updateStats() {
+	var numActive = frozen.filter(x => !x).length;
+	var numFrozen = frozen.filter(x => x).length;
+	$("#stat-crew-cryo").text(numFrozen);
+	$("#stat-crew-active").text(numActive);
+	
+	var numLifeSup = numActiveIn("Life Support");
+	var lifeSupCost = Math.max(COSTLIFESUP - GAINLIFESUP * numLifeSup, 3 * COSTCRYO)
+	
+	usageCryo = COSTCRYO * numFrozen;
+	usageLifeSup = lifeSupCost * numActive;
+	usageEngine = COSTENGINE + COSTENGINE * numActiveIn("Engine Room");
+	usageScanner = COSTSCANNER + COSTSCANNER * numActiveIn("Scanner Array");
+	usageShield = COSTSHIELD + COSTSHIELD * numActiveIn("Shield Gens");
+	usageMedbay = COSTMEDBAY * numActiveIn("Medical Bay");
+	usageMissile = COSTMISSILE * numActiveIn("Missile Control");
+	usageWarp = COSTWARP * numActiveIn("Warp Control");
+	var usageGross = usageCryo + usageLifeSup + usageEngine + usageScanner + usageShield + usageMedbay + usageMissile + usageWarp;
+	usageTotal = Math.max(0, usageGross - GAINCORE);
+	
+	$("#stat-usage-total").text(usageGross);
+	$("#stat-usage-cryo").text(usageCryo);
+	$("#stat-usage-lifesup").text(usageLifeSup);
+	$("#stat-usage-engine").text(usageEngine);
+	$("#stat-usage-scanner").text(usageScanner);
+	$("#stat-usage-shield").text(usageShield);
+	$("#stat-usage-medbay").text(usageMedbay);
+	$("#stat-usage-missile").text(usageMissile);
+	$("#stat-usage-warp").text(usageWarp);
+	$("#stat-gain-core").text(GAINCORE);
+	
+	engineSpeed = 1 + 2 * numActiveIn("Engine Room");
+	scanRange = 1 + 2 * numActiveIn("Scanner Array");
+	shieldStr = 1 + 2 * numActiveIn("Shield Gens");
+	var injuredOut = 0, injuredIn = 0;
+	for (var i = 0; i < CREW; i++) {
+		if (health[i] < MAXHEALTH && health[i] > 0) {
+			if ($("#crew-status"+i+" .crew-select").val() == "Medical Bay")
+				injuredIn += 1;
+			else
+				injuredOut += 1;
+		}
+	}
+	
+	$("#stat-speed").text(engineSpeed);
+	$("#stat-scan-range").text(scanRange);
+	$("#stat-shield-str").text(shieldStr);
+	$("#stat-health-critical").text(injuredOut);
+	$("#stat-health-care").text(injuredIn);
+	$("#stat-warp-perc").text(warpPerc);
+	
+	$("#stat-ratio-now").text(Math.round(10000 * engineSpeed / usageTotal));
+	$("#stat-ratio-left").text(Math.round(10000 * (MAXPROGRESS - progress) / power));
+	
+	$("#power-used").text("POWER LOSS: " + usageTotal);
+	$("#power-left").text(power);
+}
+
+function positionChanged(which) {
+	var $whichSelect = $("#crew-status"+which+" select");
+	$whichSelect.prop("disabled", true);
+	$("#crew-status"+which+" .cryo-button").prop("disabled", true);
+	updateUI();
+	setTimeout(function(){
+			logbox(SHORTNAMES[which] + " moved to " + $whichSelect.val() + ".")
+			$whichSelect.prop("disabled", false);
+			updateUI();
+		}, MOVEDELAY);
+}
+
+function numActiveIn(position) {
+	return $(".crew-select").filter(function(){
+			return $(this).val() == position && !$(this).attr("disabled")
+		}).length;
+}
+
+function cryoToggle(which) {
+	if (frozen[which]) {
+		$("#crew-status"+which+" .cryo-button").prop("disabled", true);
+		$("#crew-status"+which+" .cryo-button").text("Unfreezing...");
+		logbox("Unfreezing " + SHORTNAMES[which] + "...");
+		setTimeout(function(){
+				frozen[which] = false;
+				$("#crew-status"+which+" select").prop("disabled", false);
+				$("#crew-status"+which+" .cryo-tint").css("display", "none");
+				$("#crew-status"+which+" .crew-img").removeClass("blurred");
+				$("#crew-status"+which+" .cryo-button").prop("disabled", false);
+				$("#crew-status"+which+" .cryo-button").text("Cryofreeze");
+				updateUI();
+				logbox("Unfroze " + SHORTNAMES[which] + ".");
+			}, THAWDELAY);
+	} else {
+		$("#crew-status"+which+" .cryo-button").prop("disabled", true);
+		$("#crew-status"+which+" .cryo-button").text("Cryofreezing...");
+		$("#crew-status"+which+" select").prop("disabled", true);
+		logbox("Cryofreezing " + SHORTNAMES[which] + "...");
+		setTimeout(function(){
+				frozen[which] = true;
+				$("#crew-status"+which+" .cryo-tint").css("display", "inherit");
+				$("#crew-status"+which+" .crew-img").addClass("blurred");
+				$("#crew-status"+which+" .cryo-button").prop("disabled", false);
+				$("#crew-status"+which+" .cryo-button").text("Unfreeze");
+				updateUI();
+				logbox("Froze " + SHORTNAMES[which] + ".");
+			}, CRYODELAY);
+	}
+	updateUI();
+}
+
+function injure(which) {
+	var $status = $("#crew-status"+which+" .crew-status");
+	health[which] -= 1;
+	if (health[which] > 0) {
+		$status.text("Injured");
+		$status.removeClass("crew-status-normal");
+		$status.addClass("crew-status-critical");
+	} else {
+		logbox('<span style="color:#a00">'+CREWNAMES[which]+' has died.</span>');
+		$status.text("Dead");
+		$status.removeClass("crew-status-critical");
+		$status.addClass("crew-status-dead");
+		$("#crew-status"+which+" .crew-name").addClass("crew-name-dead");
+		$("#crew-status"+which+" .crew-job").addClass("crew-job-dead");
+	}
+	updateUI();
+}
+
+function warp() {
+	if (warpPerc == 100  && power > WARPCOST) {
+		warpPerc = 0;
+		power -= WARPCOST;
+		$("#warp-button").attr("disabled", warpPerc < 100);
+		$("#stat-warp-perc").text(warpPerc);
+		logbox("Preparing to warp...");
+		setTimeout(function() {
+				if (health.some(x => x > 0)) {
+					logbox("Warp succeeded");
+					progress = Math.min(MAXPROGRESS, progress + WARPDIST);
+					var progressPerc = progress / MAXPROGRESS;
+					var newMilestone = Math.floor(100*progressPerc);
+					if (newMilestone > currentMilestone) {
+						currentMilestone = newMilestone;
+						logbox('<span style="color:#0a0">Progress: ' + currentMilestone + '%</span>');
+					}
+				}
+			}, WARPTIME);
+	}
+}
+
+</script>
+</head>
+<body onload="startGame()">
+<div id="outer-darkness">
+<div id="content-wrapper">
+	<div id="progress-bg"></div>
+	<img id="progress-ship" src="assets/ship.png">
+	<div style="position:absolute; left:440; top:44;width:400px; height:28px; 
+	border: 2px solid black; font-size:24px; text-align:center; border-radius:14px; background:rgba(255,255,255,0.8)">
+		<i>Indefatigable</i> Status Panel
+	</div>
+	<div class="stat-display" style="left:380;  top:84;  width:250px; height:96px;">
+		In cryo: <span id="stat-crew-cryo">-</span><br>
+		Active: <span id="stat-crew-active">-</span>
+	</div>
+	<div class="stat-display" style="left:380;  top:190; width:250px; height:144px;">
+		Speed: <span id="stat-speed">-</span>x<br>
+		Scan: <span id="stat-scan-range">-</span><br>
+		Shields: <span id="stat-shield-str">-</span>x
+	</div>
+	<div class="stat-display" style="left:380;  top:350; width:250px; height:96px;">
+		Critical: <span id="stat-health-critical">-</span><br>
+		In care: <span id="stat-health-care">-</span>
+	</div>
+	<div class="stat-display" style="left:380;  top:502; width:250px; height:48px;">
+		<span id="stat-warp-perc">--</span>%
+		<button id="warp-button" onclick="warp()"
+		style="position:absolute; left:4; top:4; bottom:4; width:150; font-size:24; font-family:monospace;">
+		WARP</button>
+	</div>
+	<div class="stat-display" style="left:380;  top:558; width:250px; height:96px;">
+		Efficiency: <span id="stat-ratio-now">--</span>%<br>
+		Required: <span id="stat-ratio-left">--</span>%
+	</div>
+	
+	<div class="stat-display" style="right:340; top:84;  width:250px; height:96px;">
+		Cryo modules: <span id="stat-usage-cryo">--</span><br>
+		Life Support: <span id="stat-usage-lifesup">--</span>
+	</div>
+	<div class="stat-display" style="right:340; top:190; width:250px; height:144px;">
+		Engine: <span id="stat-usage-engine">--</span><br>
+		Scanner: <span id="stat-usage-scanner">--</span><br>
+		Shield: <span id="stat-usage-shield">--</span>
+	</div>
+	<div class="stat-display" style="right:344; top:374; width:250px; height:48px;">
+		Medbay: <span id="stat-usage-medbay">--</span>
+	</div>
+	<div class="stat-display" style="right:344; top:438; width:250px; height:48px;">
+		Missile: <span id="stat-usage-missile">--</span>
+	</div>
+	<div class="stat-display" style="right:344; top:502; width:250px; height:48px;">
+		Warp: <span id="stat-usage-warp">0</span>
+	</div>
+	<div class="stat-display" style="right:344; top:558; width:250px; height:96px;">
+		Usage: <span id="stat-usage-total">--</span><br>
+		Core: <span id="stat-gain-core">--</span>
+	</div>
+	<div id="logbox">[000000] Liftoff!<br></div>
+	<div id="power-emptybg">
+	<div id="power-fullbg"></div></div>
+	<div id="power-text" style="font-family:monospace">
+		<span id="power-left">--</span>
+		<span id="power-used">POWER LOSS: --</span>
+	</div>
+</div>
+</div>
+</body>
+</html>
