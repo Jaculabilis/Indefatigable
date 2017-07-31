@@ -4,6 +4,18 @@
 
 There's no music, but consider [playing this in the background](https://www.youtube.com/watch?v=0mHf0cKPU5g).
 
+![numbers](screenshots/numbers.png)
+
+1. Progress bar
+2. Crew member name, job, and health status
+3. Crew member position assignment
+4. Freeze/thaw crew member (only in Cryo Control)
+5. Current power reserves
+6. Rate of power loss
+7. Proportion of engine speed to power usage, both current and required average to make it to the end
+8. Usage statistics for all ship positions
+9. Ship's log: progress updates appear green, crisis events appear red, and horse revolutions appear yellow
+
 ## Ship positions
 * **Cryo Control:** Any crew member can place themselves in cryostasis, but an active crew member must man Cryo Control to thaw frozen crew members. Crew members in cryostasis take less power to keep alive.
 * **Engine Room:** Man the Engine Room to increase the _Indefatigable_'s speed. Each additional crew member makes the ship faster and more efficient in its power usage.
