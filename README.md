@@ -25,3 +25,7 @@ There's no music, but consider [playing this in the background](https://www.yout
 
 ## Screenshots
 ![example-screenshot1](screenshots/example-screenshot1.png)
+
+![example-screenshot2](screenshots/example-screenshot2.png)
+
+![example-screenshot3](screenshots/example-screenshot3.png)
